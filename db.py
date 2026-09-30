@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Date, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Date, ForeignKey, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
@@ -58,3 +58,68 @@ def get_session():
     engine = create_engine(DB_URL)
     Session = sessionmaker(bind=engine)
     return Session()
+
+# Category CRUD Operations
+def add_category(name, weekly_target_hours):
+    session = get_session()
+    try:
+        clean_name = name.strip()
+        existing = session.query(Category).filter(func.lower(Category.name) == clean_name.lower()).first()
+        if existing:
+            return False, f"Category '{clean_name}' already exists."
+            
+        new_category = Category(name=clean_name, weekly_target_hours=weekly_target_hours)
+        session.add(new_category)
+        session.commit()
+        return True, "Category added successfully!"
+    except Exception as e:
+        session.rollback()
+        return False, str(e)
+    finally:
+        session.close()
+
+def get_all_categories():
+    session = get_session()
+    try:
+        return session.query(Category).all()
+    finally:
+        session.close()
+
+def update_category(category_id, name, weekly_target_hours):
+    session = get_session()
+    try:
+        clean_name = name.strip()
+        existing = session.query(Category).filter(
+            func.lower(Category.name) == clean_name.lower(),
+            Category.id != category_id
+        ).first()
+        if existing:
+            return False, f"Category '{clean_name}' already exists."
+
+        category = session.query(Category).filter(Category.id == category_id).first()
+        if category:
+            category.name = clean_name
+            category.weekly_target_hours = weekly_target_hours
+            session.commit()
+            return True, "Category updated successfully!"
+        return False, "Category not found."
+    except Exception as e:
+        session.rollback()
+        return False, str(e)
+    finally:
+        session.close()
+
+def delete_category(category_id):
+    session = get_session()
+    try:
+        category = session.query(Category).filter(Category.id == category_id).first()
+        if category:
+            session.delete(category)
+            session.commit()
+            return True, "Category deleted successfully!"
+        return False, "Category not found."
+    except Exception as e:
+        session.rollback()
+        return False, str(e)
+    finally:
+        session.close()
